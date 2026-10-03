@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "synctool"
+version = "0.1.0"
+description = "Sneakernet-style file sync between two setups via an intermediary drive"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[project.scripts]
+synctool = "synctool.cli:main"
+
+[project.gui-scripts]
+synctool-gui = "synctool.gui.app:main"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+gui = ["PyQt6"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["synctool"]
