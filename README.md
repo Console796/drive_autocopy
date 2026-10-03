@@ -39,6 +39,27 @@ synctool status              # see ledger state and pending changes, no writes
 synctool recall --only projects --dry-run
 ```
 
+## Ignoring files
+
+Put a `.syncignore` in the root of a sync set's directory to keep files out of
+its transfers. Syntax is the same as `.gitignore`:
+
+```
+# build output and caches
+node_modules/
+__pycache__/
+*.log
+!important.log
+/dist/
+```
+
+The file is part of the tree, so it syncs along with everything else and both
+setups use the same list. A transfer reads the ignore file at its source — your
+local copy on `recall`, the drive's copy on `deploy`. `status`, `--dry-run` and
+the GUI's pending counts all honour it. Already-recalled files that you later
+ignore stay on the drive (they aren't deleted); remove them by hand if you want
+them gone. See [SPEC.md §7.3](SPEC.md#73-ignoring-files-syncignore).
+
 ## GUI
 
 A PyQt6 front end over the same `synctool` package (SPEC.md §14). The

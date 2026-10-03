@@ -6,6 +6,7 @@ from typing import Callable, Literal, Sequence
 
 from . import drive as drive_mod
 from . import engine
+from . import ignore as ignore_mod
 from . import ledger as ledger_mod
 from .config import Config, SyncSet
 
@@ -202,9 +203,16 @@ def run(
         local_path = Path(s.local_path)
         drive_target = info.mount_point / s.drive_subpath
 
+        # .syncignore of the transfer's source: local on recall, drive on deploy.
+        try:
+            filters = ignore_mod.filter_args(ignore_mod.load(local_path if action == "recall" else drive_target))
+        except ignore_mod.IgnoreError as exc:
+            outcomes.append(SetOutcome(s.name, warning, True, str(exc), None))
+            continue
+
         if action == "recall":
             drive_target.mkdir(parents=True, exist_ok=True)
-            cmd = engine.build_recall_command(local_path, drive_target, dry_run=dry_run)
+            cmd = engine.build_recall_command(local_path, drive_target, dry_run=dry_run, filter_args=filters)
         else:
             if not drive_target.exists():
                 outcomes.append(
@@ -218,7 +226,7 @@ def run(
                     )
                 )
                 continue
-            cmd = engine.build_deploy_command(drive_target, local_path, dry_run=dry_run)
+            cmd = engine.build_deploy_command(drive_target, local_path, dry_run=dry_run, filter_args=filters)
 
         line_cb = (lambda line, _name=s.name: on_line(_name, line)) if on_line else None
         result = engine.run_rsync(cmd, stream=(on_line is None), on_line=line_cb)

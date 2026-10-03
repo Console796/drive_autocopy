@@ -7,6 +7,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from .. import drive as drive_mod
 from .. import engine
+from .. import ignore as ignore_mod
 from .. import ledger as ledger_mod
 from .. import pipeline
 from ..config import Config
@@ -125,9 +126,13 @@ class StatusWorker(QThread):
             local_path = Path(s.local_path)
 
             pending: int | None = None
-            if drive_target.exists() and local_path.exists():
+            try:
+                filters = ignore_mod.filter_args(ignore_mod.load(local_path))
+            except ignore_mod.IgnoreError:
+                filters = None  # unreadable .syncignore: pending count unknown; the sync itself will say why
+            if filters is not None and drive_target.exists() and local_path.exists():
                 preview = engine.run_rsync(
-                    engine.build_recall_command(local_path, drive_target, dry_run=True),
+                    engine.build_recall_command(local_path, drive_target, dry_run=True, filter_args=filters),
                     stream=False,
                 )
                 pending = sum(

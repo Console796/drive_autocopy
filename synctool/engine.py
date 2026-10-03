@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 
 @dataclass
@@ -22,16 +22,26 @@ def _as_dir(path: Path) -> str:
     return s if s.endswith("/") else s + "/"
 
 
-def build_recall_command(local_path: Path, drive_target: Path, dry_run: bool = False) -> list[str]:
-    cmd = ["rsync", "-auv", "--delete"]
+def build_recall_command(
+    local_path: Path,
+    drive_target: Path,
+    dry_run: bool = False,
+    filter_args: Sequence[str] = (),
+) -> list[str]:
+    cmd = ["rsync", "-auv", "--delete", *filter_args]
     if dry_run:
         cmd.append("-n")
     cmd += [_as_dir(local_path), _as_dir(drive_target)]
     return cmd
 
 
-def build_deploy_command(drive_target: Path, local_path: Path, dry_run: bool = False) -> list[str]:
-    cmd = ["rsync", "-auv"]
+def build_deploy_command(
+    drive_target: Path,
+    local_path: Path,
+    dry_run: bool = False,
+    filter_args: Sequence[str] = (),
+) -> list[str]:
+    cmd = ["rsync", "-auv", *filter_args]
     if dry_run:
         cmd.append("-n")
     cmd += [_as_dir(drive_target), _as_dir(local_path)]

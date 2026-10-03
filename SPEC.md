@@ -49,6 +49,7 @@ sync-tool/
 │   ├── drive.py         # UUID resolution, mount detection/mounting
 │   ├── ledger.py         # read/write/validate .sync_state.json
 │   ├── engine.py         # rsync command construction & subprocess execution
+│   ├── ignore.py         # .syncignore parsing -> rsync filter rules
 │   ├── pipeline.py        # orchestrates the 4-step safe execution sequence
 │   └── logging_setup.py
 ├── tests/
@@ -178,7 +179,32 @@ rsync -auv <drive_mount>/<drive_subpath>/ <local_path>/
   than the source, so fresher local work is never clobbered by an older
   drive copy.
 
-### 7.3 Status (read-only)
+### 7.3 Ignoring files (`.syncignore`)
+
+A `.syncignore` file at the root of a sync set's directory keeps matching
+files out of that set's transfers (build output, `node_modules/`, caches,
+secrets). It is an ordinary file in the tree, so it is itself synced and both
+setups share one list — edit it on either machine and Recall to propagate.
+
+- Syntax is `.gitignore`-style: one pattern per line, `#` comments, `*.log`,
+  `dir/` (directories only), `/anchored` (relative to the set root), `**`, and
+  `!pattern` to re-include. As in gitignore, a file can't be re-included if a
+  parent directory is excluded.
+- Implementation: lines are translated to rsync `--filter` rules in reverse
+  order (gitignore is last-match-wins, rsync first-match-wins; rsync's own
+  `--exclude-from` would treat `!pattern` as a literal exclude). See `ignore.py`.
+- A transfer uses the `.syncignore` at its **source**: the local directory on
+  Recall, the drive copy on Deploy. The setup that pushed the data decides what
+  was left out of it. Dry-run and `status` previews apply it too.
+- Ignored files already present at the destination are **left alone**, not
+  deleted — Recall's `--delete` never removes excluded files (no
+  `--delete-excluded`). A file ignored after it was already recalled stays on
+  the drive until removed by hand; Deploy won't pull it.
+- An unreadable `.syncignore` skips that set with an error rather than syncing
+  without it (which could copy exactly what was meant to stay off the drive).
+- Missing file = no rules; nothing changes for existing sync sets.
+
+### 7.4 Status (read-only)
 
 Not in the original discussion, but required for a safe UX: prints the
 ledger contents **per sync set**, current drive mount state, and — via

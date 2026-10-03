@@ -7,6 +7,7 @@ from pathlib import Path
 from . import config as config_mod
 from . import drive as drive_mod
 from . import engine
+from . import ignore as ignore_mod
 from . import ledger as ledger_mod
 from . import pipeline
 from .logging_setup import configure_logging
@@ -225,9 +226,19 @@ def cmd_status(args: argparse.Namespace) -> int:
                 )
 
         local_path = Path(s.local_path)
+        try:
+            ignore_rules = ignore_mod.load(local_path)
+        except ignore_mod.IgnoreError as exc:
+            print(f"  {exc}")
+            continue
+        if ignore_rules:
+            print(f"  ignore: {len(ignore_rules)} rule(s) from {ignore_mod.IGNORE_FILENAME}")
+
         if drive_target.exists() and local_path.exists():
             preview = engine.run_rsync(
-                engine.build_recall_command(local_path, drive_target, dry_run=True),
+                engine.build_recall_command(
+                    local_path, drive_target, dry_run=True, filter_args=ignore_mod.filter_args(ignore_rules)
+                ),
                 stream=False,
             )
             changed = [
