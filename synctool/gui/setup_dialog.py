@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -156,9 +157,13 @@ class SetupDialog(QDialog):
         layout.addWidget(header_widget)
 
         self.rows_container = QVBoxLayout()
+        self.rows_container.setAlignment(Qt.AlignmentFlag.AlignTop)
         rows_widget = QWidget()
         rows_widget.setLayout(self.rows_container)
-        layout.addWidget(rows_widget, stretch=1)
+        self.rows_scroll = QScrollArea()
+        self.rows_scroll.setWidgetResizable(True)
+        self.rows_scroll.setWidget(rows_widget)
+        layout.addWidget(self.rows_scroll, stretch=1)
 
         self.rows: list[SyncSetRow] = []
         if existing:
@@ -170,7 +175,7 @@ class SetupDialog(QDialog):
             self._add_row(s.name, s.local_path, s.drive_subpath)
 
         add_row_btn = QPushButton("+ Add Sync Set")
-        add_row_btn.clicked.connect(lambda: self._add_row())
+        add_row_btn.clicked.connect(self._add_and_show_row)
         layout.addWidget(add_row_btn)
 
         buttons = QDialogButtonBox(
@@ -184,6 +189,18 @@ class SetupDialog(QDialog):
         row = SyncSetRow(name, local_path, drive_subpath, on_remove=self._remove_row)
         self.rows.append(row)
         self.rows_container.addWidget(row)
+
+    def _add_and_show_row(self) -> None:
+        self._add_row()
+        row = self.rows[-1]
+        QTimer.singleShot(0, lambda: self._show_new_row(row))
+
+    def _show_new_row(self, row: SyncSetRow) -> None:
+        if row in self.rows:
+            self.rows_container.activate()
+            self.rows_scroll.widget().adjustSize()
+            self.rows_scroll.ensureWidgetVisible(row)
+            row.name_edit.setFocus()
 
     def _remove_row(self, row: SyncSetRow) -> None:
         self.rows_container.removeWidget(row)
